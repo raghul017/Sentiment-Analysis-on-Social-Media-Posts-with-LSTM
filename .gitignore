@@ -30,6 +30,15 @@ env/
 *.swp
 *.swo
 
+# Data files
+*.csv
+*.txt
+*.json
+*.jsonl
+*.ft.txt
+data/
+datasets/
+
 # Logs
 logs/
 *.log
