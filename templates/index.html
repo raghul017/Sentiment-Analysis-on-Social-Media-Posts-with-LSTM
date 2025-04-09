@@ -4,20 +4,82 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Sentiment Analysis</title>
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap"
-      rel="stylesheet"
-    />
-    <link
-      rel="stylesheet"
-      href="{{ url_for('static', filename='css/style.css') }}"
-    />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 20px;
+        background-color: #f5f5f5;
+      }
+      .container {
+        background-color: white;
+        padding: 30px;
+        border-radius: 10px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .form-group {
+        margin-bottom: 20px;
+      }
+      textarea {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 5px;
+        min-height: 100px;
+        font-size: 16px;
+        margin-bottom: 10px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        display: block;
+        margin: 0 auto;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .result {
+        margin-top: 20px;
+        padding: 20px;
+        border-radius: 5px;
+        text-align: center;
+      }
+      .positive {
+        background-color: #dff0d8;
+        color: #3c763d;
+      }
+      .negative {
+        background-color: #f2dede;
+        color: #a94442;
+      }
+      .history {
+        margin-top: 30px;
+        border-top: 1px solid #ddd;
+        padding-top: 20px;
+      }
+      .history-item {
+        margin-bottom: 15px;
+        padding: 10px;
+        border-radius: 5px;
+        background-color: #f9f9f9;
+      }
+    </style>
   </head>
   <body>
-    <canvas id="particles"></canvas>
     <div class="container">
       <h1>Sentiment Analysis</h1>
-      <form id="sentimentForm">
+      <form method="POST" id="sentimentForm">
         <div class="form-group">
           <textarea
             name="text"
@@ -27,176 +89,35 @@
         </div>
         <button type="submit">Analyze Sentiment</button>
       </form>
-      <div class="loading">
-        <div class="loading-spinner"></div>
-      </div>
-      <div class="error-message"></div>
-      <div class="result" id="result">
-        {% if result %}
-        <div
-          class="result {% if result == 'Positive' %}positive{% else %}negative{% endif %} show"
-        >
-          <div class="result-header">
-            <h2>{{ result }}</h2>
-            {% if confidence is not none %}
-            <div class="confidence-bar">
-              <div
-                class="confidence-fill"
-                style="width: {{ confidence * 100 }}%"
-              ></div>
-            </div>
-            <p class="confidence-text">
-              Confidence: {{ "%.1f"|format(confidence * 100) }}%
-            </p>
-            {% endif %}
-          </div>
-          <div class="result-details">
-            <p class="sentiment-strength">
-              {% if confidence >= 0.8 %} Very Strong {{ result }} {% elif
-              confidence >= 0.6 %} Strong {{ result }} {% elif confidence >= 0.4
-              %} Moderate {{ result }} {% else %} Weak {{ result }} {% endif %}
-            </p>
-          </div>
-        </div>
+
+      {% if result %}
+      <div
+        class="result {% if result == 'Positive' %}positive{% else %}negative{% endif %}"
+      >
+        <h2>{{ result }}</h2>
+        {% if confidence is not none %}
+        <p>Confidence: {{ confidence * 100 }}%</p>
         {% endif %}
+      </div>
+      {% endif %}
+
+      <div class="history">
+        <h3>Recent Analyses</h3>
+        {% for item in history %}
+        <div class="history-item">
+          <p><strong>Text:</strong> {{ item.text }}</p>
+          <p><strong>Sentiment:</strong> {{ item.result }}</p>
+          <p><strong>Confidence:</strong> {{ item.confidence * 100 }}%</p>
+        </div>
+        {% endfor %}
       </div>
     </div>
 
     <script>
-      // Particle animation
-      const canvas = document.getElementById("particles");
-      const ctx = canvas.getContext("2d");
-
-      // Set canvas size
-      function setCanvasSize() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
+      // Prevent form resubmission on page refresh
+      if (window.history.replaceState) {
+        window.history.replaceState(null, null, window.location.href);
       }
-
-      setCanvasSize();
-      window.addEventListener("resize", setCanvasSize);
-
-      // Particle class
-      class Particle {
-        constructor() {
-          this.reset();
-        }
-
-        reset() {
-          this.x = Math.random() * canvas.width;
-          this.y = Math.random() * canvas.height;
-          this.size = Math.random() * 3 + 1;
-          this.speedX = Math.random() * 2 - 1;
-          this.speedY = Math.random() * 2 - 1;
-          this.opacity = Math.random() * 0.5 + 0.2;
-          this.color = `rgba(108, 92, 231, ${this.opacity})`;
-        }
-
-        update() {
-          this.x += this.speedX;
-          this.y += this.speedY;
-
-          if (this.x < 0 || this.x > canvas.width) this.speedX *= -1;
-          if (this.y < 0 || this.y > canvas.height) this.speedY *= -1;
-        }
-
-        draw() {
-          ctx.beginPath();
-          ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-          ctx.fillStyle = this.color;
-          ctx.fill();
-        }
-      }
-
-      // Create particles
-      const particles = [];
-      const particleCount = 50;
-
-      for (let i = 0; i < particleCount; i++) {
-        particles.push(new Particle());
-      }
-
-      // Animation loop
-      function animate() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        particles.forEach((particle) => {
-          particle.update();
-          particle.draw();
-        });
-
-        // Draw connections
-        particles.forEach((particle1, i) => {
-          particles.slice(i + 1).forEach((particle2) => {
-            const dx = particle1.x - particle2.x;
-            const dy = particle1.y - particle2.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            if (distance < 150) {
-              ctx.beginPath();
-              ctx.strokeStyle = `rgba(108, 92, 231, ${
-                0.2 * (1 - distance / 150)
-              })`;
-              ctx.lineWidth = 1;
-              ctx.moveTo(particle1.x, particle1.y);
-              ctx.lineTo(particle2.x, particle2.y);
-              ctx.stroke();
-            }
-          });
-        });
-
-        requestAnimationFrame(animate);
-      }
-
-      animate();
-
-      // Form submission handler
-      document
-        .getElementById("sentimentForm")
-        .addEventListener("submit", function (e) {
-          e.preventDefault();
-
-          const form = this;
-          const text = form.querySelector("textarea").value;
-          const resultDiv = document.getElementById("result");
-          const loadingDiv = document.querySelector(".loading");
-          const errorDiv = document.querySelector(".error-message");
-
-          // Show loading spinner
-          loadingDiv.style.display = "block";
-          resultDiv.classList.remove("show");
-          errorDiv.style.display = "none";
-
-          // Send AJAX request
-          fetch("/", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: `text=${encodeURIComponent(text)}`,
-          })
-            .then((response) => response.text())
-            .then((html) => {
-              // Create a temporary div to parse the response
-              const tempDiv = document.createElement("div");
-              tempDiv.innerHTML = html;
-
-              // Extract the result and confidence
-              const newResultDiv = tempDiv.querySelector(".result");
-              if (newResultDiv) {
-                resultDiv.innerHTML = newResultDiv.innerHTML;
-                resultDiv.className = newResultDiv.className;
-                resultDiv.classList.add("show");
-              }
-            })
-            .catch((error) => {
-              errorDiv.textContent = "An error occurred. Please try again.";
-              errorDiv.style.display = "block";
-            })
-            .finally(() => {
-              loadingDiv.style.display = "none";
-            });
-        });
     </script>
   </body>
 </html>
